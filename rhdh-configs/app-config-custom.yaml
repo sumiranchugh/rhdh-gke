@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-custom
+data:
+  app-config-custom.yaml: |
+    permission:
+      enabled: true
+      rbac:
+        admin:
+          users:
+            - name: user:default/d479d632-f16a-4af0-9ab3-1320de63baf5
+    auth:
+      environment: production
+      # Providing an auth.session.secret will enable session support in the auth-backend
+      session:
+        secret: changeit
+      providers:
+        microsoft:
+          production:
+            metadataUrl: https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration
+            clientId: a8654004-a9fa-4f5e-acd2-e988e076a152
+            clientSecret: ''
+            tenantId: 64dc69e4-d083-49fc-9569-ebece1dd1408
+            prompt: auto # Recommended to use auto
+            ## Uncomment for additional configuration options
+            # callbackUrl: ${AUTH_OIDC_CALLBACK_URL}
+            # tokenEndpointAuthMethod: ${AUTH_OIDC_TOKEN_ENDPOINT_METHOD}
+            # tokenSignedResponseAlg: ${AUTH_OIDC_SIGNED_RESPONSE_ALG}
+            additionalScopes:
+              - groupmember.read.all
+              - openid 
+              - profile
+            ## Declarative resolvers to override the default resolver: `emailLocalPartMatchingUserEntityName`
+            ## The authentication provider tries each sign-in resolver until it succeeds, and fails if none succeed. Uncomment the resolvers that you want to use.
+            # signIn:
+            #   resolvers:
+            #     - resolver: preferredUsernameMatchingUserEntityName
+            #     - resolver: emailMatchingUserEntityProfileEmail
+            #     - resolver: emailLocalPartMatchingUserEntityName
+    signInPage: microsoft
+   

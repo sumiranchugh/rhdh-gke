@@ -1,0 +1,101 @@
+global:
+  # TODO: Set your application domain name.
+  host: sumilab.zapto.org
+  dynamic:
+    includes:
+      - dynamic-plugins.default.yaml
+    plugins:
+      - package: ./dynamic-plugins/dist/backstage-plugin-catalog-backend-module-github-dynamic
+        disabled: true
+      - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes
+        disabled: true        
+      - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes-backend-dynamic
+        disabled: true  
+      - package: ./dynamic-plugins/dist/janus-idp-backstage-plugin-rbac
+        disabled: false
+      - package: ./dynamic-plugins/dist/janus-idp-backstage-plugin-topology
+        disabled: false
+      - package: ./dynamic-plugins/dist/backstage-plugin-techdocs-backend-dynamic
+        disabled: false
+        pluginConfig:
+          techdocs:
+            builder: external
+            generator:
+              runIn: local
+            publisher:
+              type: 'googleGcs'
+              googleGcs:
+                bucketName: 'rhdh-bucket'
+                projectId: 'openenv-b4g6h'
+              
+
+route:
+  enabled: false
+
+
+upstream:
+  service:
+    # NodePort is required for the ALB to route to the Service
+    type: NodePort
+  ServiceAccount: 
+    name: rhdh-sa 
+
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: gce
+      networking.gke.io/managed-certificates: "ingress-test-cert"
+
+      #alb.ingress.kubernetes.io/scheme: internet-facing
+
+
+      # TODO: Using an ALB HTTPS Listener requires a certificate for your own domain. Fill in the ARN of your certificate, e.g.:
+      #alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:xxx:xxxx:certificate/xxxxxx
+
+
+      #alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+
+
+      #alb.ingress.kubernetes.io/ssl-redirect: '443'
+
+
+      # TODO: Set your application domain name.
+      #iexternal-dns.alpha.kubernetes.io/hostname: <your rhdh domain name>
+
+
+  backstage:
+    image:
+      pullSecrets:
+      - rhdh-pull-secret
+    podSecurityContext:
+      # you can assign any random value as fsGroup
+      fsGroup: 2000
+    extraAppConfig:
+      - configMapRef: app-config-custom
+        filename: app-config-custom.yaml
+    # nodeSelector:
+    #   iam.gke.io/gke-metadata-server-enabled: "true"    
+    extraEnvVars:
+      - name: LOG_LEVEL
+        value: debug
+      - name: BACKEND_SECRET
+        valueFrom:
+          secretKeyRef:
+            key: backend-secret
+            name: rhdh-auth
+      - name: POSTGRESQL_ADMIN_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            key: postgres-password
+            name: rhdh-postgresql 
+  postgresql:
+    image:
+      pullSecrets:
+      - rhdh-pull-secret
+    primary:
+      podSecurityContext:
+        enabled: true
+        # you can assign any random value as fsGroup
+        fsGroup: 3000
+  volumePermissions:
+    enabled: true

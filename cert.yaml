@@ -1,7 +1,0 @@
-apiVersion: networking.gke.io/v1
-kind: ManagedCertificate
-metadata:
-  name: ingress-test-cert
-spec:
-  domains:
-    - sumilab.zapto.org

@@ -1,0 +1,6 @@
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: d479d632-f16a-4af0-9ab3-1320de63baf5
+spec:
+  memberOf: team-a

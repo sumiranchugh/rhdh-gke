@@ -26,7 +26,9 @@ global:
               type: 'googleGcs'
               googleGcs:
                 bucketName: 'rhdh-bucket'
-                projectId: 'openenv-b4g6h'
+                # projectId: 'openenv-b4g6h' # not required if same project
+                credentials: 
+                  $file: "/opt/app-root/src/credentials.json"
               
 
 route:
@@ -34,36 +36,35 @@ route:
 
 
 upstream:
-  service:
-    # NodePort is required for the ALB to route to the Service
-    type: NodePort
-  ServiceAccount: 
-    name: rhdh-sa 
-
+  # service:
+  #   # NodePort is required for the ALB to route to the Service
+  #   type: NodePort
+  serviceAccount: 
+    name: rhdh-sa
+    create: true
+    annotations:
+      iam.gke.io/gcp-service-account: rhdh-db-sa@openenv-b4g6h.iam.gserviceaccount.com
+  postgresql:
+    enabled: false
   ingress:
     enabled: true
     annotations:
       kubernetes.io/ingress.class: gce
       networking.gke.io/managed-certificates: "ingress-test-cert"
-
-      #alb.ingress.kubernetes.io/scheme: internet-facing
-
-
-      # TODO: Using an ALB HTTPS Listener requires a certificate for your own domain. Fill in the ARN of your certificate, e.g.:
-      #alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:xxx:xxxx:certificate/xxxxxx
-
-
-      #alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
-
-
-      #alb.ingress.kubernetes.io/ssl-redirect: '443'
-
-
-      # TODO: Set your application domain name.
-      #iexternal-dns.alpha.kubernetes.io/hostname: <your rhdh domain name>
-
-
   backstage:
+    appConfig:
+      backend:
+        database:
+          connection:  # configure Backstage DB connection parameters
+            host: '127.0.0.1'
+            port: '5432'
+            user: rhdh-db-sa@openenv-b4g6h.iam
+            password: 'test' #dummy Value
+    # args:
+    #   - '--config'
+    #   - app-config-from-configmap.yaml
+    #   - '--config'
+    #   - dynamic-plugins-root/app-config.dynamic-plugins.yaml        
     image:
       pullSecrets:
       - rhdh-pull-secret
@@ -72,7 +73,21 @@ upstream:
       fsGroup: 2000
     extraAppConfig:
       - configMapRef: app-config-custom
-        filename: app-config-custom.yaml
+        filename: app-config-custom.yaml   
+    extraContainers:
+      - name: cloud-sql-proxy
+        image: gcr.io/cloud-sql-connectors/cloud-sql-proxy
+        args:
+          - "--structured-logs"
+          - "--port=5432"
+          - "--auto-iam-authn"
+          - "openenv-b4g6h:australia-southeast2:rhdh-db"
+        securityContext:
+          runAsNonRoot: true
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu:    "1"        
     # nodeSelector:
     #   iam.gke.io/gke-metadata-server-enabled: "true"    
     extraEnvVars:
@@ -83,19 +98,60 @@ upstream:
           secretKeyRef:
             key: backend-secret
             name: rhdh-auth
-      - name: POSTGRESQL_ADMIN_PASSWORD
-        valueFrom:
-          secretKeyRef:
-            key: postgres-password
-            name: rhdh-postgresql 
-  postgresql:
-    image:
-      pullSecrets:
-      - rhdh-pull-secret
-    primary:
-      podSecurityContext:
-        enabled: true
-        # you can assign any random value as fsGroup
-        fsGroup: 3000
+      # - name: POSTGRESQL_ADMIN_PASSWORD
+      #   valueFrom:
+      #     secretKeyRef:
+      #       key: postgres-password
+      #       name: rhdh-postgresql 
+    extraVolumeMounts:
+      - mountPath: "/opt/app-root/src/credentials.json"
+        subPath: credentials.json
+        name: "techdocs-credentials"
+      # - mountPath: /dynamic-plugins-root
+      #   name: dynamic-plugins-root
+      # - mountPath: /opt/app-root/src/dynamic-plugins.yaml
+      #   name: dynamic-plugins
+      #   readOnly: true
+      #   subPath: dynamic-plugins.yaml
+      # - mountPath: /opt/app-root/src/.npmrc.dynamic-plugins
+      #   name: dynamic-plugins-npmrc
+      #   readOnly: true
+      #   subPath: .npmrc
+      - mountPath: "/opt/app-root/src/dynamic-plugins-root"
+        name: "dynamic-plugins-root"  
+    extraVolumes:
+      - name: "techdocs-credentials"
+        secret: 
+          secretName: techdocs-credentials
+      - ephemeral:
+          volumeClaimTemplate:
+            spec:
+              accessModes:
+              - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 2Gi
+        name: dynamic-plugins-root
+      - configMap:
+          defaultMode: 420
+          name: dynamic-plugins
+          optional: true
+        name: dynamic-plugins
+      - name: dynamic-plugins-npmrc
+        secret:
+          defaultMode: 420
+          optional: true
+          secretName: dynamic-plugins-npmrc    
+        
+
+  # postgresql:
+  #   image:
+  #     pullSecrets:
+  #     - rhdh-pull-secret
+  #   primary:
+  #     podSecurityContext:
+  #       enabled: true
+  #       # you can assign any random value as fsGroup
+  #       fsGroup: 3000
   volumePermissions:
     enabled: true

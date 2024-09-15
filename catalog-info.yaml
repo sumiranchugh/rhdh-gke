@@ -3,4 +3,5 @@ kind: User
 metadata:
   name: 6ebb84cb-8d47-4b43-b5c4-7eb6d74d24eb
 spec:
-  memberOf: team-a
+  memberOf: 
+  - team-a

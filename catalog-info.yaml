@@ -1,15 +1,8 @@
 apiVersion: backstage.io/v1alpha1
 kind: User
 metadata:
-  name: default/sumiranchugh
-spec:
-  memberOf: 
-  - team-a
----
-apiVersion: backstage.io/v1alpha1
-kind: User
-metadata:
   name: sumiranchugh
 spec:
   memberOf: 
-  - default
+  - team-a
+

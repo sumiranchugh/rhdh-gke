@@ -5,6 +5,7 @@ metadata:
 spec:
   memberOf: 
   - teama
+---  
 apiVersion: backstage.io/v1alpha1
 kind: User
 metadata:
